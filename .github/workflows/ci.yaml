@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  
+  push:
+  workflow_dispatch:
+  
+jobs:
+  
+  build:
+    
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Descarga repositorio
+        uses: actions/checkout@v3
+
+      - name: Compilacion JAVA
+        run: |
+          chmod +x gradlew
+          ./gradlew build
+      
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4.0.0
+        with: 
+          java-version: 11
+          distribution: 'temurin'
+    
+
+          
+      - name: Copia de Jar a Raiz de proyecto
+        run: |
+          cp $GITHUB_WORKSPACE/build/libs/spring-petclinic-2.6.0.jar .
+          chmod 777 spring-petclinic-2.6.0.jar
+          ls -ltra
+          
+      
+      - name: Upload Test results
+        uses: actions/upload-artifact@master
+        with:
+           name: Depcheck report
+           path: spring-petclinic-2.6.0.jar
+      
+
+
+    
+          
