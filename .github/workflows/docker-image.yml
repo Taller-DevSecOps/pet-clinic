@@ -14,4 +14,4 @@ jobs:
     #- uses: actions/checkout@v4
     
     - name: Hello-world
-      run: eecho "Hola Mundo"
+      run: echo "Hola Mundo"
