@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+
+
+jobs:
+
+  Hello-world:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    #- uses: actions/checkout@v4
+    
+    - name: Hello-world
+      run: eecho "Hola Mundo"
