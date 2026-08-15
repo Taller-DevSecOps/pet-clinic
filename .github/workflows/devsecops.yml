@@ -1,4 +1,23 @@
-sast:
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ "devsecops-pipeline" ]
+
+jobs:
+
+  clonacion:
+    name: "1. Clonación del repositorio"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+      - name: Confirmar checkout
+        run: |
+          echo "Repositorio clonado correctamente"
+          git log -1 --oneline
+
+  sast:
     name: "2. SAST (SonarCloud)"
     needs: clonacion
     runs-on: ubuntu-latest
@@ -20,3 +39,62 @@ sast:
             -Dsonar.organization=rvillalobos182 \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.qualitygate.wait=true
+
+  sca:
+    name: "3. SCA (Dependency-Check)"
+    needs: sast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'pet-clinic'
+          path: '.'
+          format: 'HTML'
+          out: 'reports'
+          args: >
+            --failOnCVSS 4
+            --enableRetired
+      - name: Subir reporte como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports
+
+  docker_build:
+    name: "4. Construcción imagen Docker"
+    needs: sca
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build imagen
+        run: docker build -t petclinic:${{ github.sha }} .
+      - name: Guardar imagen para el siguiente job
+        run: docker save petclinic:${{ github.sha }} -o /tmp/petclinic.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/petclinic.tar
+
+  image_security:
+    name: "5. Image Security (Trivy)"
+    needs: docker_build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+      - name: Cargar imagen
+        run: docker load -i /tmp/petclinic.tar
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'petclinic:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '1'
+          ignore-unfixed: false
